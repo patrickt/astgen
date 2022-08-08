@@ -45,6 +45,13 @@ instance SFunctor #{name} where smap _ = coerce
 instance STraversable #{name} where straverse _ = pure . coerce
 |]
 
+natureWrapper :: Nature -> Builder
+natureWrapper (Name n) = \case
+  Single -> ""
+  Optional -> "Maybe"
+  Many -> "[]"
+  Some -> "NonEmpty"
+
 instance Render Token where render = error "TODO"
 
 instance Render Product where render = error "TODO"

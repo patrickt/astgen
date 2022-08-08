@@ -1,0 +1,5 @@
+* Render instance for Product
+* Render instance for Token
+* Aggregate token list into Document
+* Move SFunctor and STraversable to their own files
+* Figure out how the parsing shit works
