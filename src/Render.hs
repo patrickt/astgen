@@ -39,15 +39,20 @@ instance STraversable #{name} where straverse f (#{name} x) = #{name} <$> strave
 |]
 
 instance Render Leaf where
-  render (Leaf name _) = [i|
+  render (Leaf name sym) = [i|
 data #{name} f a = #{name} { ann :: a, text :: Data.Text.Text }
   deriving stock Functor
 
 instance SFunctor #{name} where smap _ = coerce
 instance STraversable #{name} where straverse _ = pure . coerce
+instance SymbolMatching #{name} where
+  matchedSymbols _ = [#{sym}]
+  showFailure _ node = "expected #{name} but got" <+> found <+> Pretty.parens (prettyNode node)
+    where
+      found = genericIndex debugSymbolNames (TS.nodeSymbol node)
 |]
 
-natureWrapper :: Nature -> Builder
+natureWrapper :: Nature -> Buffer
 natureWrapper = \case
   Single -> ""
   Optional -> "Maybe"
