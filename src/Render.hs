@@ -33,13 +33,13 @@ instance Render Choice where
     in [i|
 newtype #{name} f a = #{name} { un#{name} :: #{choices} }
   deriving stock Functor
-  deriving newtype SFunctor
+  deriving newtype (SFunctor, Unmarshal)
 
 instance STraversable #{name} where straverse f (#{name} x) = #{name} <$> straverse f x
 |]
 
 instance Render Leaf where
-  render (Leaf name) = [i|
+  render (Leaf name _) = [i|
 data #{name} f a = #{name} { ann :: a, text :: Data.Text.Text }
   deriving stock Functor
 

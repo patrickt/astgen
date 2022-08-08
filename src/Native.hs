@@ -52,11 +52,11 @@ data Choice = Choice
     choiceSubtypes :: NonEmpty Name
   }
 
-newtype Leaf = Leaf Name
+data Leaf = Leaf Name TSSymbol
 
 data Token = Token Name TSSymbol
 
-data Product = Product Name Nature [Name]
+data Product = Product Name Nature [Name] [TSSymbol]
 
 makeFieldLabels ''Choice
 

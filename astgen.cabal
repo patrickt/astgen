@@ -27,6 +27,7 @@ common haskell
                     , fused-effects
                     , tree-sitter
                     , optics
+                    , prettyprinter
                     , string-interpolate
                     , text
                     , text-builder-linear
@@ -41,11 +42,13 @@ library
                       JSON
                       Native
                       Render
+                      Example
                       Syntax
                       Syntax.Kinds
                       Syntax.Sum
                       Syntax.SFunctor
                       Syntax.STraversable
+                      Syntax.Unmarshal
 
     hs-source-dirs:   src
 

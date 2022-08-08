@@ -5,12 +5,15 @@ module Syntax.Kinds
   ( Syntax
   , Leaf
   , Node
+  , Choice
   ) where
 
 import Data.Kind (Type)
 
 type Syntax = (Type -> Type) -> (Type -> Type)
 
-type Leaf = (Type -> Type) -> (Type -> Type)
+type Leaf = Syntax
 
-type Node = (Type -> Type) -> (Type -> Type)
+type Node = Syntax
+
+type Choice = Syntax
