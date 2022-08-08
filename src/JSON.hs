@@ -12,7 +12,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module JSON (NodeTypes (NodeTypes), NodeInfo (NodeInfo), FieldInfo (FieldInfo), Node (Node)) where
+module JSON (Document (Document), NodeInfo (NodeInfo), FieldInfo (FieldInfo), Node (Node)) where
 
 import Data.Vector (Vector)
 import Data.Aeson (FromJSON (..), (.:), (.:?), withObject)
@@ -22,7 +22,7 @@ import Data.HashMap.Strict (HashMap)
 import GHC.Generics (Generic)
 import Optics
 
-newtype NodeTypes = NodeTypes (Vector NodeInfo)
+newtype Document = Document (Vector NodeInfo)
   deriving stock Show
   deriving newtype FromJSON
 

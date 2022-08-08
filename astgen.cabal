@@ -25,6 +25,7 @@ common haskell
     build-depends:    base ^>=4.16.1.0
                     , aeson
                     , fused-effects
+                    , generic-optics
                     , tree-sitter
                     , optics
                     , prettyprinter
@@ -33,12 +34,14 @@ common haskell
                     , text-builder-linear
                     , unordered-containers
                     , vector
+                    , witherable
     default-language: Haskell2010
 
 
 library
     import: haskell
     exposed-modules:  MyLib
+                      Convert
                       JSON
                       Native
                       Render

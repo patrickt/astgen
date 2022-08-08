@@ -10,6 +10,7 @@ import Control.Monad
 import JSON qualified
 import Native
 import Render
+import Convert
 import Data.Aeson qualified as Aeson
 import Data.Text.Builder.Linear qualified as Builder
 import Data.Text qualified as Text
@@ -20,12 +21,13 @@ main = do
   args <- getArgs
   when (null args) (die "Expected one argument")
   let path = head args
-  -- asForeign <- Aeson.decodeFileStrict path
-  let asForeign = Just ()
+  asForeign <- Aeson.decodeFileStrict path
   case asForeign of
     Nothing -> die "Error parsing JSON, this shouldn't happen"
     Just f -> do
-      -- let doc = parseDocument f
-      let doc = Document [ChoiceNode (Choice "Value" ["Array", "False", "Null", "Number", "Object", "String"])]
-      let asText = Builder.runBuilder (render doc)
-      Text.putStrLn asText
+      doc <- convert "JSON" f
+      case doc of
+        Left err -> die ("Error: " <> show err)
+        Right val -> do
+          let asText = Builder.runBuilder (render val)
+          Text.putStrLn asText
