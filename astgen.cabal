@@ -21,17 +21,7 @@ maintainer:         patrickt@github.com
 -- category:
 extra-source-files: CHANGELOG.md
 
-library
-    exposed-modules:  MyLib
-                      JSON
-                      Native
-                      Render
-
-    -- Modules included in this library but not exported.
-    -- other-modules:
-
-    -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
+common haskell
     build-depends:    base ^>=4.16.1.0
                     , aeson
                     , fused-effects
@@ -41,10 +31,20 @@ library
                     , text-builder-linear
                     , unordered-containers
                     , vector
-    hs-source-dirs:   src
     default-language: Haskell2010
 
+
+library
+    import: haskell
+    exposed-modules:  MyLib
+                      JSON
+                      Native
+                      Render
+
+    hs-source-dirs:   src
+
 executable astgen
+    import: haskell
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
@@ -57,4 +57,3 @@ executable astgen
         astgen
 
     hs-source-dirs:   app
-    default-language: Haskell2010

@@ -3,6 +3,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE LambdaCase #-}
 module Render where
 
 import Native
@@ -16,6 +17,9 @@ import Optics.Label ()
 
 class Render a where
   render :: a -> Builder
+
+instance Render Document where
+  render (Document ds) = foldl' (\x y -> x <> "\n\n" <> y) mempty (fmap render ds)
 
 instance Render Choice where
   render c =
@@ -33,11 +37,21 @@ instance STraversable #{name} where straverse f (#{name} x) = #{name} <$> strave
 |]
 
 instance Render Leaf where
-  render (Leaf n) = [i|
+  render (Leaf name) = [i|
 data #{name} f a = #{name} { ann :: a, text :: Data.Text.Text }
   deriving stock Functor
 
 instance SFunctor #{name} where smap _ = coerce
 instance STraversable #{name} where straverse _ = pure . coerce
-
 |]
+
+instance Render Token where render = error "TODO"
+
+instance Render Product where render = error "TODO"
+
+instance Render NodeType where
+  render = \case
+    ChoiceNode c -> render c
+    LeafNode l -> render l
+    TokenNode t -> render t
+    ProductNode p -> render p

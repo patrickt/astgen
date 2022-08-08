@@ -26,6 +26,11 @@ import Optics.Label ()
 import Data.Maybe
 import Data.String (IsString)
 
+newtype Document = Document [NodeType]
+
+parseDocument :: JSON.NodeTypes -> Document
+parseDocument = error "TODO"
+
 newtype Name = Name Text
   deriving newtype (IsString)
 
@@ -37,8 +42,8 @@ data Nature = Single | Optional | Some | Many
 data NodeType
   = ChoiceNode Choice
   | LeafNode Leaf
-  | Token Name
-  | Product Name Nature [Name]
+  | TokenNode Token
+  | ProductNode Product
 
 data Choice = Choice
   {
@@ -47,6 +52,10 @@ data Choice = Choice
   }
 
 newtype Leaf = Leaf Name
+
+newtype Token = Token Name
+
+data Product = Product Name Nature [Name]
 
 makeFieldLabels ''Choice
 
