@@ -25,7 +25,7 @@ import Optics.TH
 import Optics.Label ()
 import Data.Maybe
 import Data.String (IsString)
-import Data.Word (Word16)
+import TreeSitter.Symbol (TSSymbol)
 
 newtype Document = Document [NodeType]
 
@@ -54,7 +54,7 @@ data Choice = Choice
 
 newtype Leaf = Leaf Name
 
-data Token = Token Name Word16
+data Token = Token Name TSSymbol
 
 data Product = Product Name Nature [Name]
 

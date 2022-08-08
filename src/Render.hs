@@ -15,6 +15,7 @@ import Data.Text qualified as Text
 import Data.Foldable
 import Optics
 import Optics.Label ()
+import TreeSitter.Symbol (toHaskellPascalCaseIdentifier)
 
 class Render a where
   render :: a -> Builder
