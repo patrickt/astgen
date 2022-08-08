@@ -1,0 +1,12 @@
+cradle:
+  cabal:
+    # - path: "test"
+    #   component: "test:astgen-test"
+    - path: "app/Main.hs"
+      component: "exe:astgen"
+    # - path: "app/Bench.hs"
+    #   component: "benchmark:astgen-benchmark"
+    # - path: "./app/Viewer.hs"
+    #   component: "exe:automata-viewer"
+    - path: "src"
+      component: "lib:astgen"
