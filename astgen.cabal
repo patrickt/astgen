@@ -25,6 +25,7 @@ common haskell
     build-depends:    base ^>=4.16.1.0
                     , aeson
                     , fused-effects
+                    , tree-sitter
                     , optics
                     , string-interpolate
                     , text
@@ -40,6 +41,11 @@ library
                       JSON
                       Native
                       Render
+                      Syntax
+                      Syntax.Kinds
+                      Syntax.Sum
+                      Syntax.SFunctor
+                      Syntax.STraversable
 
     hs-source-dirs:   src
 

@@ -11,6 +11,7 @@ import Data.Text.Builder.Linear (Builder)
 import Data.Text.Builder.Linear qualified as Builder
 import Data.String.Interpolate (i)
 import Data.Text (Text)
+import Data.Text qualified as Text
 import Data.Foldable
 import Optics
 import Optics.Label ()
@@ -46,13 +47,19 @@ instance STraversable #{name} where straverse _ = pure . coerce
 |]
 
 natureWrapper :: Nature -> Builder
-natureWrapper (Name n) = \case
+natureWrapper = \case
   Single -> ""
   Optional -> "Maybe"
   Many -> "[]"
   Some -> "NonEmpty"
 
-instance Render Token where render = error "TODO"
+instance Render Token where
+  render (Token (Name name) symbol) =
+    let
+      readable = toHaskellPascalCaseIdentifier (Text.unpack name)
+    in [i|
+type Anonymous#{readable} = Syntax.Token.Token "#{name}" #{symbol}
+|]
 
 instance Render Product where render = error "TODO"
 
