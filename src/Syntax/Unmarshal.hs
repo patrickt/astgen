@@ -8,6 +8,7 @@
 {-# LANGUAGE TypeOperators #-}
 module Syntax.Unmarshal
   ( SymbolMatching (..)
+  , prettyNode
   ) where
 
 import Syntax.Kinds
@@ -19,7 +20,7 @@ import TreeSitter.Node qualified as TS
 
 class SymbolMatching (a :: Syntax) where
   matchedSymbols :: Proxy a -> [Int]
-  showFailure :: forall x . Proxy a -> Node -> Doc x
+  showFailure :: forall x . Proxy a -> TS.Node -> Doc x
 
 instance forall f g . (SymbolMatching f, SymbolMatching g) => SymbolMatching (f :++: g) where
   matchedSymbols _ = matchedSymbols (Proxy @f) <> matchedSymbols (Proxy @g)

@@ -1,13 +1,17 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ViewPatterns #-}
 module Name
   ( Name (..)
   , asConstructor
+  , escaped
+  , toPascalCase
   ) where
 import Data.String (IsString)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Coerce
+import TreeSitter.Symbol (toHaskellPascalCaseIdentifier)
 
 
 newtype Name = Name Text
@@ -19,3 +23,11 @@ instance Show Name where
 
 asConstructor :: Name -> Text
 asConstructor (Name n) = Text.toTitle . Text.dropWhile (== '_') $ n
+
+escaped :: Name -> Text
+escaped (Name (Text.unpack -> t)) = Text.pack done
+  where
+    done = t >>= (\c -> if c == '"' then "\\\"" else [c])
+
+toPascalCase :: Name -> Text
+toPascalCase = Text.pack . toHaskellPascalCaseIdentifier . Text.unpack . coerce

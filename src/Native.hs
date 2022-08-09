@@ -69,7 +69,7 @@ data Choice = Choice
     choiceSubtypes :: NonEmpty Name
   }
 
-data Leaf = Leaf Name TSSymbol
+data Leaf = Leaf { leafName :: Name, leafSymbolIndex :: TSSymbol }
 
 data Token = Token Name TSSymbol
 

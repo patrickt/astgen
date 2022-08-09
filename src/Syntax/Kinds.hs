@@ -6,6 +6,7 @@ module Syntax.Kinds
   , Leaf
   , Node
   , Choice
+  , Token
   ) where
 
 import Data.Kind (Type)
@@ -17,3 +18,6 @@ type Leaf = Syntax
 type Node = Syntax
 
 type Choice = Syntax
+
+-- Tokens are not parameterized by a shape functor.
+type Token = Type -> Type

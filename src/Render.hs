@@ -29,17 +29,32 @@ instance Render Document where
     let allDecls = foldl' (\x y -> x <> "\n\n" <> y) mempty (fmap render allNodes)
         debugList = "[" <> foldl' (\x y -> x <> "," <> render y) (render debug) rest <> "]"
      in [i|
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE TypeOperators #-}
 module Language.#{name}.AST (module Language.#{name}.AST) where
 
-import Prelude ()
+import Prelude ((.))
 import qualified Prelude
-import qualified Data.List
-import Syntax.Unmarshal
-import Prettyprinter ((<+>))
-import Data.Semigroup ((<>))
-import qualified Prettyprinter
 
-debugSymbolNames :: Prettyprinter.Doc a
+import Data.Coerce (coerce)
+import Data.Semigroup ((<>))
+import Prettyprinter ((<+>))
+import Syntax.Sum ((:++:))
+import qualified Data.List
+import qualified Data.Text
+import qualified Prettyprinter
+import qualified Syntax
+import qualified Syntax.Kinds
+import qualified TreeSitter.Node
+
+debugSymbolNames :: [Prettyprinter.Doc a]
 debugSymbolNames = |]
       <> debugList
       <> allDecls
@@ -53,11 +68,12 @@ instance Render Choice where
         choices :: Text
         choices = foldl1 glue (c ^.. #subtypes % folded % coerced)
      in [i|
+type #{name} :: Syntax.Kinds.Choice
 newtype #{name} f a = #{name} { un#{name} :: (#{choices}) f a }
   deriving stock Prelude.Functor
-  deriving newtype (SFunctor, SymbolMatching)
+  deriving newtype (Syntax.SFunctor, Syntax.SymbolMatching)
 
-instance STraversable #{name} where straverse f (#{name} x) = #{name} <$> straverse f x
+instance Syntax.STraversable #{name} where straverse f (#{name} x) = Prelude.fmap #{name} (Syntax.straverse f x)
 |]
 
 instance Render Leaf where
@@ -66,16 +82,17 @@ instance Render Leaf where
       name :: String
       name = toHaskellPascalCaseIdentifier (Text.unpack (coerce lname))
     in [i|
+type #{name} :: Syntax.Kinds.Leaf
 data #{name} f a = #{name} { ann :: a, text :: Data.Text.Text }
   deriving stock Prelude.Functor
 
-instance SFunctor #{name} where smap _ = coerce
-instance STraversable #{name} where straverse _ = pure . coerce
-instance SymbolMatching #{name} where
+instance Syntax.SFunctor #{name} where smap _ = coerce
+instance Syntax.STraversable #{name} where straverse _ = Prelude.pure . coerce
+instance Syntax.SymbolMatching #{name} where
   matchedSymbols _ = [#{sym}]
-  showFailure _ node = "expected #{lname} but got" <+> found <+> Pretty.parens (prettyNode node)
+  showFailure _ node = "expected #{lname} but got" <+> found <+> Prettyprinter.parens (Syntax.prettyNode node)
     where
-      found = Data.List.genericIndex debugSymbolNames (TS.nodeSymbol node)
+      found = Data.List.genericIndex debugSymbolNames (TreeSitter.Node.nodeSymbol node)
 |]
 
 natureWrapper :: Nature -> Builder
@@ -86,11 +103,12 @@ natureWrapper = \case
   Some -> "NonEmpty"
 
 instance Render Token where
-  render (Token (Name.Name name) symbol) =
-    let readable = toHaskellPascalCaseIdentifier (Text.unpack name)
-        escaped = if name == "\"" then "\\\"" else name
+  render (Token name symbol) =
+    let readable = Name.toPascalCase name
+        display = Name.escaped name
      in [i|
-type Anonymous#{readable} = Syntax.Token.Token "#{escaped}" #{symbol}
+type Anonymous#{readable} :: Syntax.Kinds.Token
+type Anonymous#{readable} = Syntax.Token "#{display}" #{symbol}
 |]
 
 instance Render Product where render = error "TODO"
@@ -107,7 +125,7 @@ instance Render Symbol where
     where
       full = leading <> name
       leading = if isAnonymous s then "_" else ""
-      name = s ^. #name % coerced % to Builder.fromText
+      name = s ^. #name % to Name.escaped % to Builder.fromText
 
 instance Render Name.Name where
   render = coerce Builder.fromText

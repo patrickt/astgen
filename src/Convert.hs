@@ -92,15 +92,20 @@ parseChoice j =
 parseLeaf :: (ConvertM sig m, Alternative m) => JSON.NodeInfo -> m Native.Leaf
 parseLeaf n = do
   guard (n ^. #named)
-  pure (Native.Leaf (n ^. #type % to Native.Name) 55)
+  let leafName = n ^. #type % to Native.Name
+  leafSymbolIndex <- findingIndexBy leafName
+  pure Native.Leaf {..}
 
 parseToken :: (ConvertM sig m, Alternative m) => JSON.NodeInfo -> m Native.Token
 parseToken n = do
   guard (not (n ^. #named))
-  syms <- toList <$> ask @(NE.NonEmpty Native.Symbol)
   let name = n ^. #type % to Native.Name
-  indexed <-
-    case findIndex (\s -> s ^. #name == name) syms of
-      Just a -> pure a
-      Nothing -> throwError (SymbolIndexNotFound (coerce name))
+  indexed <- findingIndexBy name
   pure (Native.Token name (fromIntegral indexed))
+
+findingIndexBy :: ConvertM sig m => Native.Name -> m TS.TSSymbol
+findingIndexBy name = do
+  syms <- toList <$> ask @(NE.NonEmpty Native.Symbol)
+  case findIndex (\s -> s ^. #name == name) syms of
+    Just a -> pure (fromIntegral a)
+    Nothing -> throwError (SymbolIndexNotFound (coerce name))

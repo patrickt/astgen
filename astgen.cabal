@@ -48,11 +48,13 @@ library
                       Name
                       Native
                       Render
+                      Language.JSON.AST
                       Syntax
                       Syntax.Kinds
                       Syntax.Sum
                       Syntax.SFunctor
                       Syntax.STraversable
+                      Syntax.Token
                       Syntax.Unmarshal
 
     hs-source-dirs:   src
