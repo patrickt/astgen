@@ -1,2 +1,3 @@
-* Deri
+* Fix STraversable
+* Build SFunctor and STraversable instances
 * Figure out how the parsing shit works

@@ -9,6 +9,7 @@ module Syntax.STraversable
 import Syntax.Kinds
 import Syntax.Sum
 
+-- TODO can we allow the annotation to change here?
 class STraversable (s :: Syntax) where
   straverse :: forall f g m . (Traversable f, Traversable g, Monad m) =>
     (forall x . f x -> m (g x)) ->
