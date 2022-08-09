@@ -29,9 +29,11 @@ common haskell
                     , tree-sitter
                     , optics
                     , prettyprinter
+                    , process
                     , string-interpolate
                     , text
                     , text-builder-linear
+                    , tree-sitter-json
                     , unordered-containers
                     , vector
                     , witherable
@@ -43,9 +45,9 @@ library
     exposed-modules:  MyLib
                       Convert
                       JSON
+                      Name
                       Native
                       Render
-                      Example
                       Syntax
                       Syntax.Kinds
                       Syntax.Sum

@@ -1,51 +1,70 @@
-{-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE MultiWayIf #-}
-module Convert
-  ( convert
-  ) where
+{-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeApplications #-}
 
-import JSON qualified
-import Native qualified
-import Data.String (fromString)
-import Witherable
-import GHC.Exts (IsList (..))
-import Optics
-import qualified Data.List.NonEmpty as NE
-import Data.Maybe
-import Control.Effect.Trace
-import Control.Effect.Throw
+module Convert
+  ( convert,
+  )
+where
+
+import Control.Applicative
 import Control.Carrier.Lift
 import Control.Carrier.NonDet.Church
-import Control.Monad
-import Data.Monoid
-import Data.Coerce
-import Control.Carrier.Trace.Printing
-import Control.Applicative
 import Control.Carrier.Throw.Either (runThrow)
+import Control.Carrier.Trace.Printing
+import Control.Effect.Throw
+import Control.Effect.Trace
+import Control.Monad
+import Data.Coerce
+import Data.List.NonEmpty qualified as NE
+import Data.Maybe
+import Data.Monoid
+import Data.String (fromString)
 import Data.Text.Optics
+import GHC.Exts (IsList (..))
+import JSON qualified
+import Native qualified
+import Name qualified as Native
+import Optics
+import Witherable
+import qualified TreeSitter.Language as TS
+import Foreign (Ptr)
+import Control.Carrier.Reader
+import Control.Monad.IO.Class (MonadIO)
+import Data.Text (Text)
+import Data.List (findIndex)
 
-type ConvertM sig m = (Monad m, Has (Throw ParseError) sig m, Has Trace sig m)
+type ConvertM sig m =
+  ( MonadIO m,
+    Has (Throw ParseError) sig m,
+    Has Trace sig m,
+    Has (Reader (Ptr TS.Language)) sig m,
+    Has (Reader (NE.NonEmpty Native.Symbol)) sig m
+  )
 
-data ParseError = NoSubtypesPresent | UnexpectedAnonymousSubtype
-  deriving Show
+data ParseError = NoSubtypesPresent | UnexpectedAnonymousSubtype | SymbolIndexNotFound Text
+  deriving (Show)
 
-convert :: String -> JSON.Document -> IO (Either ParseError Native.Document)
-convert name
-  = runM
-  . runThrow
-  . runTrace
-  . document name
-
+convert :: Ptr TS.Language -> String -> JSON.Document -> IO (Either ParseError Native.Document)
+convert lang name doc = do
+  syms <- Native.allSymbols lang
+  runM
+    . runThrow
+    . runTrace
+    . runReader lang
+    . runReader syms
+    $ document name doc
 
 document :: ConvertM sig m => String -> JSON.Document -> m Native.Document
 document langname (JSON.Document nts) = do
   let documentLanguageName = fromString langname
-  documentDebugSymbols <- fromList . toList <$> traverse debugSymbol nts
+  -- documentDebugSymbols <- fromList . toList <$> traverse debugSymbol nts
+  documentDebugSymbols <- ask >>= Native.allSymbols
   documentNodeTypes <- witherM (runNonDetA . nodeType) nts
-  pure Native.Document{..}
+  pure Native.Document {..}
 
 nodeType :: (Alternative m, ConvertM sig m) => JSON.NodeInfo -> m Native.NodeType
 nodeType i = choice <|> leaf <|> token <|> perish
@@ -78,10 +97,10 @@ parseLeaf n = do
 parseToken :: (ConvertM sig m, Alternative m) => JSON.NodeInfo -> m Native.Token
 parseToken n = do
   guard (not (n ^. #named))
-  pure (Native.Token (n ^. #type % to Native.Name) 55)
-
-debugSymbol :: ConvertM sig m => JSON.NodeInfo -> m Native.Symbol
-debugSymbol n = do
-  let symbolName = n ^. #type % to Native.Name
-  let symbolNymity = if n ^. #named then Native.Named else Native.Anonymous
-  pure Native.Symbol{..}
+  syms <- toList <$> ask @(NE.NonEmpty Native.Symbol)
+  let name = n ^. #type % to Native.Name
+  indexed <-
+    case findIndex (\s -> s ^. #name == name) syms of
+      Just a -> pure a
+      Nothing -> throwError (SymbolIndexNotFound (coerce name))
+  pure (Native.Token name (fromIntegral indexed))

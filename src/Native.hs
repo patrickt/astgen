@@ -35,6 +35,7 @@ import Data.Typeable (Typeable)
 import Foreign (Ptr)
 import Foreign.C.String (peekCString)
 import JSON qualified
+import Name
 import Optics
 import Optics.Label ()
 import Optics.TH
@@ -48,12 +49,6 @@ data Document = Document
     documentDebugSymbols :: NonEmpty Symbol,
     documentNodeTypes :: Vector NodeType
   }
-
-newtype Name = Name Text
-  deriving newtype (IsString)
-
-instance Show Name where
-  show = Text.unpack . coerce
 
 data Nature = Single | Optional | Some | Many
 
@@ -80,7 +75,7 @@ data Token = Token Name TSSymbol
 
 data Product = Product Name Nature [Name] [TSSymbol]
 
-data Symbol = Symbol {symbolName :: Name, symbolNymity :: Nymity}
+data Symbol = Symbol {symbolName :: Name, symbolNymity :: Nymity, symbolIndex :: TSSymbol}
   deriving stock (Generic)
 
 makeFieldLabels ''Choice
@@ -100,8 +95,8 @@ allSymbols language = liftIO do
   when (count == 0) (throwIO ZeroLanguageSymbolsPresent)
   traverse getSymbol (NE.fromList [(0 :: TSSymbol) .. fromIntegral (pred count)])
   where
-    getSymbol i = do
-      symbolName <- fromString <$> (TS.ts_language_symbol_name language i >>= peekCString)
-      t <- TS.ts_language_symbol_type language i
+    getSymbol symbolIndex = do
+      symbolName <- fromString <$> (TS.ts_language_symbol_name language symbolIndex >>= peekCString)
+      t <- TS.ts_language_symbol_type language symbolIndex
       let symbolNymity = if t == 0 then Named else Anonymous
       pure Symbol {..}

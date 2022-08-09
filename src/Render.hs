@@ -15,6 +15,7 @@ import Data.Text.Builder.Linear (Builder)
 import Data.Text.Builder.Linear qualified as Builder
 import Data.List.NonEmpty (NonEmpty (..))
 import Native
+import Name qualified
 import Optics
 import Optics.Label ()
 import TreeSitter.Symbol (toHaskellPascalCaseIdentifier)
@@ -30,6 +31,14 @@ instance Render Document where
      in [i|
 module Language.#{name}.AST (module Language.#{name}.AST) where
 
+import Prelude ()
+import qualified Prelude
+import qualified Data.List
+import Syntax.Unmarshal
+import Prettyprinter ((<+>))
+import Data.Semigroup ((<>))
+import qualified Prettyprinter
+
 debugSymbolNames :: Prettyprinter.Doc a
 debugSymbolNames = |]
       <> debugList
@@ -37,31 +46,36 @@ debugSymbolNames = |]
 
 instance Render Choice where
   render c =
-    let name :: Name
-        name = c ^. #name
+    let name :: Text
+        name = c ^. #name % to Name.asConstructor
+        glue :: Text -> Text -> Text
+        glue l r = Text.toTitle l <> " :++: " <> Text.toTitle r
         choices :: Text
-        choices = foldl1 (\x y -> x <> " :++: " <> y) (c ^.. #subtypes % folded % coerced)
+        choices = foldl1 glue (c ^.. #subtypes % folded % coerced)
      in [i|
 newtype #{name} f a = #{name} { un#{name} :: (#{choices}) f a }
-  deriving stock Functor
-  deriving newtype (SFunctor, Unmarshal)
+  deriving stock Prelude.Functor
+  deriving newtype (SFunctor, SymbolMatching)
 
 instance STraversable #{name} where straverse f (#{name} x) = #{name} <$> straverse f x
 |]
 
 instance Render Leaf where
-  render (Leaf name sym) =
-    [i|
+  render (Leaf lname sym) =
+    let
+      name :: String
+      name = toHaskellPascalCaseIdentifier (Text.unpack (coerce lname))
+    in [i|
 data #{name} f a = #{name} { ann :: a, text :: Data.Text.Text }
-  deriving stock Functor
+  deriving stock Prelude.Functor
 
 instance SFunctor #{name} where smap _ = coerce
 instance STraversable #{name} where straverse _ = pure . coerce
 instance SymbolMatching #{name} where
   matchedSymbols _ = [#{sym}]
-  showFailure _ node = "expected #{name} but got" <+> found <+> Pretty.parens (prettyNode node)
+  showFailure _ node = "expected #{lname} but got" <+> found <+> Pretty.parens (prettyNode node)
     where
-      found = genericIndex debugSymbolNames (TS.nodeSymbol node)
+      found = Data.List.genericIndex debugSymbolNames (TS.nodeSymbol node)
 |]
 
 natureWrapper :: Nature -> Builder
@@ -72,10 +86,11 @@ natureWrapper = \case
   Some -> "NonEmpty"
 
 instance Render Token where
-  render (Token (Name name) symbol) =
+  render (Token (Name.Name name) symbol) =
     let readable = toHaskellPascalCaseIdentifier (Text.unpack name)
+        escaped = if name == "\"" then "\\\"" else name
      in [i|
-type Anonymous#{readable} = Syntax.Token.Token "#{name}" #{symbol}
+type Anonymous#{readable} = Syntax.Token.Token "#{escaped}" #{symbol}
 |]
 
 instance Render Product where render = error "TODO"
@@ -94,5 +109,5 @@ instance Render Symbol where
       leading = if isAnonymous s then "_" else ""
       name = s ^. #name % coerced % to Builder.fromText
 
-instance Render Name where
+instance Render Name.Name where
   render = coerce Builder.fromText
