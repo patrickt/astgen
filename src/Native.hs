@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -14,7 +15,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE DeriveGeneric #-}
 
 module Native (module Native) where
 
@@ -32,8 +32,10 @@ import Data.String (IsString, fromString)
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Typeable (Typeable)
+import Data.Vector (Vector)
 import Foreign (Ptr)
 import Foreign.C.String (peekCString)
+import GHC.Generics (Generic)
 import JSON qualified
 import Name
 import Optics
@@ -41,8 +43,6 @@ import Optics.Label ()
 import Optics.TH
 import TreeSitter.Language qualified as TS
 import TreeSitter.Symbol (TSSymbol)
-import GHC.Generics (Generic)
-import Data.Vector (Vector)
 
 data Document = Document
   { documentLanguageName :: Name,
@@ -50,7 +50,7 @@ data Document = Document
     documentNodeTypes :: Vector NodeType
   }
 
-data Nature = Single | Optional | Some | Many
+data Nature = Single | Optional | Some | Many deriving stock Show
 
 data Nymity = Named | Anonymous
   deriving stock (Eq)
@@ -69,17 +69,22 @@ data Choice = Choice
     choiceSubtypes :: NonEmpty Name
   }
 
-data Leaf = Leaf { leafName :: Name, leafSymbolIndex :: TSSymbol }
+data Leaf = Leaf {leafName :: Name, leafSymbolIndex :: TSSymbol}
 
 data Token = Token Name TSSymbol
 
-data Product = Product Name Nature [Name] [TSSymbol]
+data Product = Product
+  { productName :: Name,
+    productFields :: [Field],
+    productExtras :: Maybe Field, -- invariant: (notNull fields || isJust extras)
+    productIndices :: [TSSymbol]
+  } deriving stock Show
+
+data Field = Field { fieldName :: Name, fieldNature :: Nature, fieldTypes :: Vector Name }
+  deriving stock (Generic, Show)
 
 data Symbol = Symbol {symbolName :: Name, symbolNymity :: Nymity, symbolIndex :: TSSymbol}
   deriving stock (Generic)
-
-makeFieldLabels ''Choice
-makeFieldLabels ''Symbol
 
 data TSException = ZeroLanguageSymbolsPresent
   deriving stock (Typeable, Show)
@@ -87,7 +92,6 @@ data TSException = ZeroLanguageSymbolsPresent
 instance Exception TSException where
   displayException = \case
     ZeroLanguageSymbolsPresent -> "Zero language symbols fetched for language"
-
 
 allSymbols :: MonadIO m => Ptr TS.Language -> m (NonEmpty Symbol)
 allSymbols language = liftIO do
@@ -100,3 +104,8 @@ allSymbols language = liftIO do
       t <- TS.ts_language_symbol_type language symbolIndex
       let symbolNymity = if t == 0 then Named else Anonymous
       pure Symbol {..}
+
+makeFieldLabels ''Choice
+makeFieldLabels ''Symbol
+makeFieldLabels ''Product
+makeFieldLabels ''Field

@@ -4,6 +4,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module Render where
 
@@ -15,11 +17,14 @@ import Data.Text.Builder.Linear (Builder)
 import Data.Text.Builder.Linear qualified as Builder
 import Data.List.NonEmpty (NonEmpty (..))
 import Native
+import Name (Name)
 import Name qualified
 import Optics
 import Optics.Label ()
 import TreeSitter.Symbol (toHaskellPascalCaseIdentifier)
 import Data.Coerce
+import Data.Maybe
+import Debug.Trace (traceShow, traceShowId)
 
 class Render a where
   render :: a -> Builder
@@ -59,17 +64,26 @@ debugSymbolNames = |]
       <> debugList
       <> allDecls
 
+foldedIntoSum :: [Name] -> Text
+foldedIntoSum ns = surround (foldl1 glue allNames)
+  where
+    allNames = fmap Name.toPascalCase ns
+    glue :: Text -> Text -> Text
+    glue l r = l <> " :++: " <> r
+    surround s
+      | length ns == 1 = s
+      | otherwise = "(" <> s <> ")"
+
+
 instance Render Choice where
   render c =
     let name :: Text
         name = c ^. #name % to Name.asConstructor
-        glue :: Text -> Text -> Text
-        glue l r = Text.toTitle l <> " :++: " <> Text.toTitle r
         choices :: Text
-        choices = foldl1 glue (c ^.. #subtypes % folded % coerced)
+        choices = foldedIntoSum (c ^.. #subtypes % folded % coerced)
      in [i|
 type #{name} :: Syntax.Kinds.Choice
-newtype #{name} f a = #{name} { un#{name} :: (#{choices}) f a }
+newtype #{name} f a = #{name} { un#{name} :: #{choices} f a }
   deriving stock Prelude.Functor
   deriving newtype (Syntax.SFunctor, Syntax.SymbolMatching)
 
@@ -95,12 +109,12 @@ instance Syntax.SymbolMatching #{name} where
       found = Data.List.genericIndex debugSymbolNames (TreeSitter.Node.nodeSymbol node)
 |]
 
-natureWrapper :: Nature -> Builder
-natureWrapper = \case
-  Single -> ""
-  Optional -> "Maybe"
-  Many -> "[]"
-  Some -> "NonEmpty"
+instance Render Nature where
+  render = \case
+    Single -> ""
+    Optional -> "Maybe"
+    Many -> "[]"
+    Some -> "NonEmpty"
 
 instance Render Token where
   render (Token name symbol) =
@@ -111,7 +125,33 @@ type Anonymous#{readable} :: Syntax.Kinds.Token
 type Anonymous#{readable} = Syntax.Token "#{display}" #{symbol}
 |]
 
-instance Render Product where render = error "TODO"
+instance Render Product where
+  render p =
+    let
+      name = p ^. #name % to Name.toPascalCase
+      extraChildren = case p ^. #extras of
+        Nothing -> ""
+        Just a -> "\n, " <> render a
+      allFields = case p ^. #fields of
+        [] -> ""
+        [a] -> "\n, " <> render a
+        as -> foldl' (\b f -> b <> "\n, " <> render f) "" as
+    in [i|
+type #{name} :: Syntax.Kinds.Product
+data #{name} f a = #{name}
+  { ann :: a |] <> extraChildren <> allFields <> "\n} deriving stock (Functor)"
+
+instance Render Field where
+  render f =
+    let
+      name = f ^. #name % to Name.camelCase % to render
+      sum = foldedIntoSum (f ^.. #types % folded)
+      wrapperFor x = case f ^. #nature of
+        Single -> "f (" <> x <> " f a)"
+        Optional -> "Prelude.Maybe (f (" <> x <> " f a))"
+        Some -> "NonEmpty.NonEmpty (f (" <> x <> " f a))"
+        Many -> "[f (" <> x <> " f a)]"
+    in name <> " :: " <> wrapperFor (render sum)
 
 instance Render NodeType where
   render = \case
@@ -129,3 +169,6 @@ instance Render Symbol where
 
 instance Render Name.Name where
   render = coerce Builder.fromText
+
+instance Render Text where
+  render = Builder.fromText
